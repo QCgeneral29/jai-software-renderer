@@ -40,6 +40,18 @@ TGAImage :: struct {
     data: [..] u8;
 }
 
+create_TGAImage :: (width: u32, height: u32, bytes_per_pixel: u8) -> (image: TGAImage) {
+    image : TGAImage;
+    image.width = width;
+    image.height = height;
+    image.bytes_per_pixel = bytes_per_pixel;
+    n_bytes := width * height * bytes_per_pixel;
+    // I don't know if these elements are zeros or random memory. TODO: Figure that out - Landen 11/10/2026
+    array_reserve(*image.data, n_bytes);
+    image.data.count = image.data.allocated;
+    return image;
+}
+
 Format :: enum u8 {
     GRAYSCALE :: 1;
     RGB :: 3;
