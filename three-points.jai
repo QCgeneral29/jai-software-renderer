@@ -1,5 +1,6 @@
 #import "Basic";
 #import "Math";
+#import "Random";
 #import,file "TGAImage.jai";
 
 WHITE   : TGAColor : .{bgra = .[255, 255, 255, 255]};
@@ -18,13 +19,18 @@ draw_line :: (ax: int, ay: int, bx: int, by: int, image: *TGAImage, color: TGACo
         swap(*ax, *bx);
         swap(*ay, *by);
     }
+    y := ay;
+    error : int;
     for x: ax..bx {
-        t : float32 = (x - ax) / cast(float32) (bx - ax);
-        y : int = xx (ay + t * (by - ay));
         if steep {
-            set_pixel_color(image, y, x, color);
+            set_pixel_color(image, xx y, x, color);
         } else {
-            set_pixel_color(image, x, y, color);
+            set_pixel_color(image, x, xx y, color);
+        }
+        error = error + (2 * abs(by - ay));
+        if error > bx - ax {
+            y = y + ifx by > ay then 1 else -1;
+            error = error - (2 * (bx - ax));
         }
     }
 }
@@ -34,17 +40,20 @@ main :: () {
     HEIGHT :: 64;
     framebuffer := create_TGAImage(WIDTH, HEIGHT, xx Format.RGB);
 
-    ax, ay : int = 7, 3;
-    bx, by : int = 12, 37;
-    cx, cy : int = 62, 53;
-
-    draw_line(ax, ay, bx, by, *framebuffer, RED);
-    draw_line(bx, by, cx, cy, *framebuffer, GREEN);
-    draw_line(cx, cy, ax, ay, *framebuffer, BLUE);
-
-    set_pixel_color(*framebuffer, ax, ay, WHITE);
-    set_pixel_color(*framebuffer, bx, by, WHITE);
-    set_pixel_color(*framebuffer, cx, cy, WHITE);
+    // Around 16 million lines.
+    for 0..1<<24 {
+        ax : u64 = random_get() % WIDTH;
+        ay : u64 = random_get() % HEIGHT;
+        bx : u64 = random_get() % WIDTH;
+        by : u64 = random_get() % HEIGHT;
+        color : TGAColor = .{bgra = .[
+            cast(u8) (random_get() % 255),
+            cast(u8) (random_get() % 255),
+            cast(u8) (random_get() % 255),
+            cast(u8) (random_get() % 255)
+            ]};
+        draw_line(xx ax, xx ay, xx bx, xx by, *framebuffer, color);
+    }
 
     write_tga_file("framebuffer.tga", *framebuffer);
 }
