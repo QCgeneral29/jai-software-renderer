@@ -263,9 +263,7 @@ flip_horizontally :: (image: * TGAImage) {
             for b: 0..bytes_per_pixel - 1 {
                 // First : data[(w + h * width) * bytes_per_pixel + b]
                 // Second: data[(width - 1 - w + h * width) * bytes_per_pixel + b]
-                tmp := data[(width - 1 - w + h * width) * bytes_per_pixel + b];
-                data[(width - 1 - w + h * width) * bytes_per_pixel + b] = data[(w + h * width) * bytes_per_pixel + b];
-                data[(w + h * width) * bytes_per_pixel + b] = tmp;
+                swap(*data[(w + h * width) * bytes_per_pixel + b], *data[(width - 1 - w + h * width) * bytes_per_pixel + b]);
             }
         }
     }
@@ -276,11 +274,9 @@ flip_vertically :: (image: * TGAImage) {
     for w: 0..width - 1 {
         for h: 0..height / 2 - 1 {
             for b: 0..bytes_per_pixel - 1 {
-                // First : data[(x + h * width) * bytes_per_pixel + b]
-                // Second: data[(x + (height - 1 - h) * width) * bytes_per_pixel + b]
-                tmp := data[(w + (height - 1 - h) * width) * bytes_per_pixel + b];
-                data[(w + (height - 1 - h) * width) * bytes_per_pixel + b] = data[(w + h * width) * bytes_per_pixel + b];
-                data[(w + h * width) * bytes_per_pixel + b] = tmp;
+                // First : data[(w + h * width) * bytes_per_pixel + b]
+                // Second: data[(w + (height - 1 - h) * width) * bytes_per_pixel + b]
+                swap(*data[(w + h * width) * bytes_per_pixel + b], *data[(w + (height - 1 - h) * width) * bytes_per_pixel + b]);
             }
         }
     }
