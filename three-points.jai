@@ -1,6 +1,7 @@
 #import "Basic";
 #import "Math";
 #import "Random";
+#import "Command_Line";
 #import,file "TGAImage.jai";
 
 WHITE   : TGAColor : .{bgra = .[255, 255, 255, 255]};
@@ -35,17 +36,30 @@ draw_line :: (ax: int, ay: int, bx: int, by: int, image: *TGAImage, color: TGACo
     }
 }
 
-main :: () {
-    WIDTH  :: 64;
-    HEIGHT :: 64;
-    framebuffer := create_TGAImage(WIDTH, HEIGHT, xx Format.RGB);
+Arguments :: struct {
+    lines   : int = 1 << 24; @"?The number of lines to draw."
+    width   : u32 = 64; @"?The width of the outputted image."
+    height  : u32 = 64; @"?The height of the outputted image."
+}
 
-    // Around 16 million lines.
-    for 0..1<<24 {
-        ax : u64 = random_get() % WIDTH;
-        ay : u64 = random_get() % HEIGHT;
-        bx : u64 = random_get() % WIDTH;
-        by : u64 = random_get() % HEIGHT;
+main :: () {
+    success, args, is_set := parse_arguments(Arguments);
+    if !success {
+        // Will also exit the program when -help is called.
+        return;
+    }
+
+    using args;
+
+    framebuffer := create_TGAImage(width, height, xx Format.RGB);
+
+    print("Drawing % lines...\n", args.lines);
+
+    for 0..lines {
+        ax : u64 = random_get() % width;
+        ay : u64 = random_get() % height;
+        bx : u64 = random_get() % width;
+        by : u64 = random_get() % height;
         color : TGAColor = .{bgra = .[
             cast(u8) (random_get() % 255),
             cast(u8) (random_get() % 255),
