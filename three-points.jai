@@ -51,7 +51,7 @@ main :: () {
 
     using args;
 
-    framebuffer := create_TGAImage(width, height, xx Format.RGB);
+    framebuffer := create_TGAImage(width, height, Format.RGB);
 
     print("Drawing % lines...\n", args.lines);
 
