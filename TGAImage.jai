@@ -101,10 +101,10 @@ read_tga_file :: (filename: string) -> (success: bool, image: TGAImage, header: 
             }
 
             if !(header.image_descriptor & 0x20){
-                assert(false, "TODO: flip vertically.");
+                flip_vertically(*image);
             }
             if header.image_descriptor & 0x10 {
-                assert(false, "TODO: flip horizontally.");
+                flip_horizontally(*image);
             }
         }
         return true, image, header;
@@ -112,8 +112,8 @@ read_tga_file :: (filename: string) -> (success: bool, image: TGAImage, header: 
     return false, .{}, .{};
 }
 
-// For future Landen:
-// I might have fixed it. Also, might be a good idea to rename data in the image to something like pixel_data. Because double data for jai arrays.
+// It might be a good idea to rename 'data' in the image struct to something like pixel_data.
+// Because jai already uses 'data' for arrays.
 expand_rle_data :: (data: * u8, image: *TGAImage) -> (success: bool) {
     total_pixels : u64 = image.width * image.height;
     current_pixel : u64;
