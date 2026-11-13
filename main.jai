@@ -10,8 +10,8 @@ RED     : TGAColor : .{bgra = .[  0,   0, 255, 255]};
 BLUE    : TGAColor : .{bgra = .[255, 128,  64, 255]};
 YELLOW  : TGAColor : .{bgra = .[  0, 200, 255, 255]};
 
-WIDTH  :: 1080;
-HEIGHT :: 1080;
+WIDTH  :: 128;
+HEIGHT :: 128;
 
 draw_line :: (ax: int, ay: int, bx: int, by: int, image: *TGAImage, color: TGAColor) {
     steep : bool = abs(ax - bx) < abs(ay-by);
@@ -39,36 +39,51 @@ draw_line :: (ax: int, ay: int, bx: int, by: int, image: *TGAImage, color: TGACo
     }
 }
 
-project :: inline (vector : Vector3) -> Vector2 {
-    r : Vector2 = ---;
-    r.x = (vector.x + 1.0) * (WIDTH / 2);
-    r.y = (vector.y + 1.0) * (HEIGHT/ 2);
-    return r;
+Vertex :: struct {
+    x, y: int;
+}
+
+triangle :: (ax: int, ay: int, bx: int, by: int, cx: int, cy: int, image: *TGAImage, color: TGAColor) {
+    if (ay > by) {
+        swap(*ax,*bx);
+        swap(*ay,*by);
+    } 
+    if (ay > cy) {
+        swap(*ax,*cx);
+        swap(*ay,*cy);
+    } 
+    if (by > cy) {
+        swap(*bx,*cx);
+        swap(*by,*cy);
+    } 
+    total_height : int = cy-ay;
+    
+    if ay != by {
+        segment_height := by - ay;
+        for y: ay..by {
+            x1 := ax + ((cx - ax) * (y - ay)) / total_height;
+            x2 := ax + ((bx - ax) * (y - ay)) / segment_height;
+            for x: min(x1, x2)..max(x1, x2) {
+                set_pixel_color(image, x, y, color);
+            }
+        }
+    }
+    if by != cy {
+        segment_height := cy - by;
+        for y: by..cy {
+            x1 := ax + ((cx - ax) * (y - ay)) / total_height;
+            x2 := bx + ((cx - bx) * (y - by)) / segment_height;
+            for x: min(x1, x2)..max(x1, x2) {
+                set_pixel_color(image, x, y, color);
+            }
+        }
+    }
 }
 
 main :: () {
-    success, model := load_model("./models/diablo3_pose.obj");
-
-    print("Num of faces: %\n", model.vertex_faces.count);
-    
     image := create_TGAImage(WIDTH, HEIGHT, Format.RGB);
-
-    for 0..((model.vertex_faces.count - 1) / 3) {
-        i1 := model.vertex_faces[(it * 3)];
-        i2 := model.vertex_faces[(it * 3) + 1];
-        i3 := model.vertex_faces[(it * 3) + 2];
-        v1 := project(model.verticies[i1]);
-        v2 := project(model.verticies[i2]);
-        v3 := project(model.verticies[i3]);
-        draw_line(xx v1.x, xx v1.y, xx v2.x, xx v2.y, *image, RED);
-        draw_line(xx v2.x, xx v2.y, xx v3.x, xx v3.y, *image, RED);
-        draw_line(xx v3.x, xx v3.y, xx v1.x, xx v1.y, *image, RED);
-    }
-
-    for model.verticies {
-        vertex := project(it);
-        set_pixel_color(*image, xx vertex.x, xx vertex.y, WHITE);
-    }
-
-    write_tga_file("./Wireframe.tga", *image, vflipped = true);
+    triangle(  7, 45, 35, 100, 45,  60, *image, RED);
+    triangle(120, 35, 90,   5, 45, 110, *image, WHITE);
+    triangle(115, 83, 80,  90, 85, 120, *image, GREEN);
+    write_tga_file("./triangles.tga", *image, vflipped = true);
 }
