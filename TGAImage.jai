@@ -37,18 +37,16 @@ TGAImage :: struct {
     width:  u32;
     height: u32;
     bytes_per_pixel: u8;
-    data: [..] u8;
+    pixels: [] u8;
 }
 
 create_TGAImage :: (width: u32, height: u32, bytes_per_pixel: Format) -> (image: TGAImage) {
-    image : TGAImage;
+    image : TGAImage = ---;
     image.width = width;
     image.height = height;
     image.bytes_per_pixel = xx bytes_per_pixel;
-    n_bytes := width * height * xx bytes_per_pixel;
-    // I don't know if these elements are zeros or random memory. TODO: Figure that out - Landen 11/10/2026
-    array_reserve(*image.data, n_bytes);
-    image.data.count = image.data.allocated;
+    image.pixels.count = width * height * xx bytes_per_pixel;
+    image.pixels.data = alloc(image.pixels.count);
     return image;
 }
 
@@ -62,8 +60,8 @@ read_tga_file :: (filename: string) -> (success: bool, image: TGAImage, header: 
     file, success := read_entire_file(filename);
     defer free(file);
     if success {
-        image : TGAImage;
-        header : TGAHeader;
+        image : TGAImage = ---;
+        header : TGAHeader = ---;
         memcpy(*header, file.data, size_of(TGAHeader));
 
         {
@@ -86,13 +84,14 @@ read_tga_file :: (filename: string) -> (success: bool, image: TGAImage, header: 
                 return false, .{}, .{};
                }
 
-            n_bytes: s64 = bytes_per_pixel * width * height;
-            array_reserve(*data, n_bytes);
+            pixels.count = bytes_per_pixel * width * height;
+            pixels.data = alloc(pixels.count);
 
             if header.data_type_code == 3 || header.data_type_code == 2 {
-                for size_of(TGAHeader)..file.count - 1 {
-                    array_add(*data, file[it]);
-                }
+                memcpy(pixels.data, file.data + size_of(TGAHeader), file.count);
+                //for size_of(TGAHeader)..file.count - 1 {
+                //    array_add(*data, file[it]);
+                //}
             } else if header.data_type_code == 10 || header.data_type_code == 11 {
                 assert(expand_rle_data(file.data, *image), "Failed to expand rle data.");
             } else {
@@ -117,7 +116,7 @@ read_tga_file :: (filename: string) -> (success: bool, image: TGAImage, header: 
 expand_rle_data :: (data: * u8, image: *TGAImage) -> (success: bool) {
     total_pixels : u64 = image.width * image.height;
     current_pixel : u64;
-    color_buffer : TGAColor;
+    color_buffer : TGAColor = ---;
 
     data = data + size_of(TGAHeader); // Add an offset to skip the header.
     data_index : u64;
@@ -129,9 +128,11 @@ expand_rle_data :: (data: * u8, image: *TGAImage) -> (success: bool) {
             for 0..chunk_header - 1 {
                 memcpy(color_buffer.bgra.data, data + data_index, image.bytes_per_pixel);  
                 data_index = data_index + image.bytes_per_pixel;
-                for 0..image.bytes_per_pixel - 1 {
-                    array_add(*image.data, color_buffer.bgra[it]);
-                }
+                memcpy(
+                    image.pixels.data + current_pixel * image.bytes_per_pixel,
+                    color_buffer.bgra.data,
+                    image.bytes_per_pixel
+                );
                 current_pixel = current_pixel + 1;
             }
         } else {
@@ -139,9 +140,11 @@ expand_rle_data :: (data: * u8, image: *TGAImage) -> (success: bool) {
             memcpy(color_buffer.bgra.data, data + data_index, image.bytes_per_pixel);  
             data_index = data_index + image.bytes_per_pixel;
             for 0..chunk_header - 1 {
-                for 0..image.bytes_per_pixel - 1 {
-                    array_add(*image.data, color_buffer.bgra[it]);
-                }
+                memcpy(
+                    image.pixels.data + current_pixel * image.bytes_per_pixel,
+                    color_buffer.bgra.data,
+                    image.bytes_per_pixel
+                );
                 current_pixel = current_pixel + 1;
             }
         }
@@ -165,7 +168,7 @@ compress_data_to_rle :: (file: * File, image: * TGAImage) -> success: bool {
             successive_equality := true;
             i : u64;
             while successive_equality && i < bytes_per_pixel {
-                successive_equality = data[current_byte + i] == data[current_byte + i + bytes_per_pixel];
+                successive_equality = pixels[current_byte + i] == pixels[current_byte + i + bytes_per_pixel];
                 i = i + 1;
             }
             current_byte = current_byte + bytes_per_pixel;
@@ -190,7 +193,7 @@ compress_data_to_rle :: (file: * File, image: * TGAImage) -> success: bool {
             return false;
         }
         amount_to_write : s64 = xx ifx raw then run_length * bytes_per_pixel else bytes_per_pixel;
-        success = file_write(file, data.data + chunk_start, amount_to_write);
+        success = file_write(file, pixels.data + chunk_start, amount_to_write);
         if !success {
             log_error("Failed to write data chunck.");
             return false;
@@ -225,7 +228,7 @@ write_tga_file :: (filename: string, image: * TGAImage, vflipped := false, rle :
     assert(file_write(*file, *header, size_of(TGAHeader))); // TODO: return false?
 
     if !rle {
-        assert(file_write(*file, image.data.data, image.data.count)); // TODO: return false?
+        assert(file_write(*file, image.pixels.data, image.pixels.count)); // TODO: return false?
     } else  {
         compress_data_to_rle(*file, image);
     }
@@ -239,9 +242,9 @@ write_tga_file :: (filename: string, image: * TGAImage, vflipped := false, rle :
 
 get_pixel_color :: (image: * TGAImage, x: s64, y: s64) -> TGAColor {
     using image;
-    if !data.count || x < 0 || y < 0 || x >= width || y >= height return .{};
+    if !pixels.count || x < 0 || y < 0 || x >= width || y >= height return .{};
     color : TGAColor;
-    pointer := data.data + (x + y * width) * bytes_per_pixel;
+    pointer := pixels.data + (x + y * width) * bytes_per_pixel;
     for < 0..bytes_per_pixel {
         color.bgra[it] = pointer[it];
     }
@@ -250,10 +253,10 @@ get_pixel_color :: (image: * TGAImage, x: s64, y: s64) -> TGAColor {
 
 set_pixel_color :: (image: * TGAImage, x: s64, y: s64, color: TGAColor) {
     using image;
-    if !data.count || x < 0 || y < 0 || x >= width || y >= height {
+    if !pixels.count || x < 0 || y < 0 || x >= width || y >= height {
         return;
     }
-    memcpy(data.data + (x + y * width) * bytes_per_pixel, color.bgra.data, bytes_per_pixel);
+    memcpy(pixels.data + (x + y * width) * bytes_per_pixel, color.bgra.data, bytes_per_pixel);
 }
 
 flip_horizontally :: (image: * TGAImage) {
@@ -263,7 +266,7 @@ flip_horizontally :: (image: * TGAImage) {
             for b: 0..bytes_per_pixel - 1 {
                 // First : data[(w + h * width) * bytes_per_pixel + b]
                 // Second: data[(width - 1 - w + h * width) * bytes_per_pixel + b]
-                swap(*data[(w + h * width) * bytes_per_pixel + b], *data[(width - 1 - w + h * width) * bytes_per_pixel + b]);
+                swap(*pixels[(w + h * width) * bytes_per_pixel + b], *pixels[(width - 1 - w + h * width) * bytes_per_pixel + b]);
             }
         }
     }
@@ -276,7 +279,7 @@ flip_vertically :: (image: * TGAImage) {
             for b: 0..bytes_per_pixel - 1 {
                 // First : data[(w + h * width) * bytes_per_pixel + b]
                 // Second: data[(w + (height - 1 - h) * width) * bytes_per_pixel + b]
-                swap(*data[(w + h * width) * bytes_per_pixel + b], *data[(w + (height - 1 - h) * width) * bytes_per_pixel + b]);
+                swap(*pixels[(w + h * width) * bytes_per_pixel + b], *pixels[(w + (height - 1 - h) * width) * bytes_per_pixel + b]);
             }
         }
     }
